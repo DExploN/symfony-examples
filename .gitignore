@@ -1,0 +1,3 @@
+app/vendor
+docker/*/volumes/
+.phpunit.result.cache
