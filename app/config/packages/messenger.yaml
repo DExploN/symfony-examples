@@ -14,11 +14,26 @@ framework:
                     multiplier: 2
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
-
+            kafka_transport:
+                dsn: '%env(KAFKA_URL)%'
+                # serializer: App\Infrastructure\Messenger\MySerializer
+                options:
+                    flushTimeout: 10000
+                    flushRetries: 5
+                    topic:
+                        name: 'eventsTopic'
+                    commitAsync: true
+                    receiveTimeout: 10000
+                    topic_conf:
+                        auto.offset.reset: 'earliest'
+                    kafka_conf:
+                        enable.auto.offset.store: 'false'
+                        group.id: 'my-group-id' # should be unique per consumer
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
+            App\Message\KafkaMessage: kafka_transport
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

@@ -32,15 +32,22 @@ RUN set -e; \
       sockets\
       gd \
       pcntl \
-    && docker-php-ext-enable amqp \
-    && rm -rf /tmp/* \
-    && rm -rf /var/list/apt/* \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && docker-php-ext-enable amqp
 
 RUN pecl install install -f xdebug-3.1.3 \
         && docker-php-ext-enable xdebug
 COPY ./ini_dir $PHP_INI_DIR
+
+# install kafka
+RUN apt-get install -y librdkafka-dev \
+        && pecl install -f rdkafka-6.0.3 \
+        && docker-php-ext-enable rdkafka
+
+# remove tmp
+RUN  rm -rf /tmp/* \
+        && rm -rf /var/list/apt/* \
+        && rm -rf /var/lib/apt/lists/* \
+        && apt-get clean
 
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
