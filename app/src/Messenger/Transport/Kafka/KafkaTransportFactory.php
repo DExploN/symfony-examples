@@ -51,16 +51,22 @@ class KafkaTransportFactory implements TransportFactoryInterface
 
     public function createTransport(string $dsn, array $options, SerializerInterface $serializer): TransportInterface
     {
-        $conf = new KafkaConf();
+        $producerConf = new KafkaConf();
+        $consumerConf = new KafkaConf();
 
         // Set a rebalance callback to log partition assignments (optional)
-        $conf->setRebalanceCb($this->createRebalanceCb($this->logger));
+        $consumerConf->setRebalanceCb($this->createRebalanceCb($this->logger));
 
         $brokers = $this->stripProtocol($dsn);
-        $conf->set('metadata.broker.list', implode(',', $brokers));
+        $producerConf->set('metadata.broker.list', implode(',', $brokers));
+        $consumerConf->set('metadata.broker.list', implode(',', $brokers));
 
-        foreach (array_merge($options['topic_conf'] ?? [], $options['kafka_conf'] ?? []) as $option => $value) {
-            $conf->set($option, $value);
+        foreach (array_merge($options['producer_conf'] ?? [], $options['kafka_conf'] ?? []) as $option => $value) {
+            $producerConf->set($option, $value);
+        }
+
+        foreach (array_merge($options['consumer_conf'] ?? [], $options['kafka_conf'] ?? []) as $option => $value) {
+            $consumerConf->set($option, $value);
         }
 
         return new KafkaTransport(
@@ -68,13 +74,13 @@ class KafkaTransportFactory implements TransportFactoryInterface
             $serializer,
             $this->kafkaFactory,
             new KafkaSenderProperties(
-                $conf,
+                $producerConf,
                 $options['topic']['name'],
                 $options['flushTimeout'] ?? 10000,
                 $options['flushRetries'] ?? 0
             ),
             new KafkaReceiverProperties(
-                $conf,
+                $consumerConf,
                 $options['topic']['name'],
                 $options['receiveTimeout'] ?? 10000,
                 $options['commitAsync'] ?? false

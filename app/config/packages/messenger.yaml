@@ -31,11 +31,12 @@ framework:
                         name: 'eventsTopic'
                     commitAsync: true
                     receiveTimeout: 10000
-                    topic_conf:
-                        auto.offset.reset: 'earliest'
                     kafka_conf:
+                    consumer_conf:
+                        auto.offset.reset: 'earliest'
                         enable.auto.offset.store: 'false'
                         group.id: 'my-group-id' # should be unique per consumer
+                    producer_conf:
         routing:
             App\Messenger\Message\Message: kafka_transport
 
