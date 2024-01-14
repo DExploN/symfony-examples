@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Message;
+namespace App\Messenger\Message;
 
-final class KafkaMessage
+final class Message
 {
     /*
      * Add whatever properties and methods you need

@@ -2,21 +2,18 @@
 
 namespace App\Command;
 
-use App\Message\KafkaMessage;
+use App\Messenger\Message\Message;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsCommand(
-    name: 'app:send-kafka-message',
+    name: 'app:send-message',
     description: 'Add a short description for your command',
 )]
-class SendKafkaMessageCommand extends Command
+class SendMessageCommand extends Command
 {
     public function __construct(private readonly MessageBusInterface $bus)
     {
@@ -25,11 +22,12 @@ class SendKafkaMessageCommand extends Command
 
     protected function configure(): void
     {
+        $this->addArgument('num');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->bus->dispatch(new KafkaMessage('Kek'));
+        $this->bus->dispatch(new Message('Kek'. $input->getArgument('num')));
         return Command::SUCCESS;
     }
 }

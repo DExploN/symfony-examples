@@ -26,9 +26,6 @@
             "migrations/.gitignore"
         ]
     },
-    "koco/messenger-kafka": {
-        "version": "v0.17"
-    },
     "phpunit/phpunit": {
         "version": "9.6",
         "recipe": {
