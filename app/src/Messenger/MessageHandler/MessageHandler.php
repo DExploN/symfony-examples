@@ -11,5 +11,6 @@ final class MessageHandler
     public function __invoke(Message $message)
     {
         echo $message->getName();
+        Throw new \Exception("error");
     }
 }

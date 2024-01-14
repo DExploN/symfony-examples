@@ -76,14 +76,15 @@ class KafkaTransportFactory implements TransportFactoryInterface
             new KafkaSenderProperties(
                 $producerConf,
                 $options['topic']['name'],
-                $options['flushTimeout'] ?? 10000,
-                $options['flushRetries'] ?? 0
+                $options['retry_topic']['name'] ?? null,
+                $options['flush_timeout'] ?? 10000,
+                $options['flush_retries'] ?? 0
             ),
             new KafkaReceiverProperties(
                 $consumerConf,
                 $options['topic']['name'],
-                $options['receiveTimeout'] ?? 10000,
-                $options['commitAsync'] ?? false
+                $options['receive_timeout'] ?? 10000,
+                $options['commit_async'] ?? false
             )
         );
     }

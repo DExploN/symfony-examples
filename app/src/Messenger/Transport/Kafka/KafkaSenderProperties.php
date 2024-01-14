@@ -20,9 +20,12 @@ final class KafkaSenderProperties
     /** @var int */
     private $flushRetries;
 
+    private ?string $retryTopicName;
+
     public function __construct(
         KafkaConf $kafkaConf,
         string $topicName,
+        ?string $retryTopicName,
         int $flushTimeoutMs,
         int $flushRetries
     ) {
@@ -30,6 +33,7 @@ final class KafkaSenderProperties
         $this->topicName = $topicName;
         $this->flushTimeoutMs = $flushTimeoutMs;
         $this->flushRetries = $flushRetries;
+        $this->retryTopicName = $retryTopicName;
     }
 
     public function getKafkaConf(): KafkaConf
@@ -50,5 +54,13 @@ final class KafkaSenderProperties
     public function getFlushRetries(): int
     {
         return $this->flushRetries;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getRetryTopicName(): ?string
+    {
+        return $this->retryTopicName;
     }
 }

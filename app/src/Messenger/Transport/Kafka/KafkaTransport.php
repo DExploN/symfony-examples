@@ -7,9 +7,10 @@ namespace App\Messenger\Transport\Kafka;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
+use Symfony\Component\Messenger\Transport\SetupableTransportInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
-class KafkaTransport implements TransportInterface
+class KafkaTransport implements TransportInterface, SetupableTransportInterface
 {
     /** @var LoggerInterface */
     private $logger;
@@ -84,5 +85,10 @@ class KafkaTransport implements TransportInterface
             $this->rdKafkaFactory,
             $this->kafkaReceiverProperties
         );
+    }
+
+    public function setup(): void
+    {
+        $this->getSender()->setup();
     }
 }

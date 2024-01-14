@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Messenger\Transport\Kafka;
 
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Psr\Log\LoggerInterface;
 use RdKafka\KafkaConsumer;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\TransportException;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 
@@ -40,12 +43,14 @@ class KafkaReceiver implements ReceiverInterface
 
         switch ($message->err) {
             case RD_KAFKA_RESP_ERR_NO_ERROR:
-                $this->logger->info(sprintf(
-                    'Kafka: Message %s %s %s received ',
-                    $message->topic_name,
-                    $message->partition,
-                    $message->offset
-                ));
+                $this->logger->info(
+                    sprintf(
+                        'Kafka: Message %s %s %s received ',
+                        $message->topic_name,
+                        $message->partition,
+                        $message->offset
+                    )
+                );
 
                 $envelope = $this->serializer->decode([
                     'body' => $message->payload,
@@ -54,7 +59,24 @@ class KafkaReceiver implements ReceiverInterface
                     'offset' => $message->offset,
                     'timestamp' => $message->timestamp,
                 ]);
-
+                /** @var DelayStamp | null $delay */
+                $delay = $envelope->last(DelayStamp::class);
+                /** @var RedeliveryStamp | $redelivery $delay */
+                $redelivery = $envelope->last(RedeliveryStamp::class);
+                if ($delay && $redelivery) {
+                    $messageStartHandleDate = $redelivery->getRedeliveredAt();
+                    $ms = $delay->getDelay();
+                    $startTimeMs = $messageStartHandleDate->getTimestamp() * 1000 + $ms;
+                    if (($waitTimeMs = $startTimeMs - microtime(true) * 1000) > 0) {
+                        $this->logger->info('Kafka: sleep after redelivery ms = ' . $waitTimeMs);
+                        $waitTimeMc = $waitTimeMs * 1000;
+                        if ($waitTimeMc >= 1000000) {
+                            sleep((int)ceil($waitTimeMc / 1000000));
+                        } else {
+                            usleep($waitTimeMc);
+                        }
+                    }
+                }
                 return [$envelope->with(new KafkaMessageStamp($message))];
             case RD_KAFKA_RESP_ERR__PARTITION_EOF:
                 $this->logger->info('Kafka: Partition EOF reached. Waiting for next message ...');
@@ -83,27 +105,59 @@ class KafkaReceiver implements ReceiverInterface
         if ($this->properties->isCommitAsync()) {
             $consumer->commitAsync($message);
 
-            $this->logger->info(sprintf(
-                'Offset topic=%s partition=%s offset=%s to be committed asynchronously.',
-                $message->topic_name,
-                $message->partition,
-                $message->offset
-            ));
+            $this->logger->info(
+                sprintf(
+                    'Offset topic=%s partition=%s offset=%s to be committed asynchronously in ack.',
+                    $message->topic_name,
+                    $message->partition,
+                    $message->offset
+                )
+            );
         } else {
             $consumer->commit($message);
 
-            $this->logger->info(sprintf(
-                'Offset topic=%s partition=%s offset=%s successfully committed.',
-                $message->topic_name,
-                $message->partition,
-                $message->offset
-            ));
+            $this->logger->info(
+                sprintf(
+                    'Offset topic=%s partition=%s offset=%s successfully committed in ack.',
+                    $message->topic_name,
+                    $message->partition,
+                    $message->offset
+                )
+            );
         }
     }
 
     public function reject(Envelope $envelope): void
     {
-        // Do nothing. auto commit should be set to false!
+        $consumer = $this->getConsumer();
+
+        /** @var KafkaMessageStamp $transportStamp */
+        $transportStamp = $envelope->last(KafkaMessageStamp::class);
+        $message = $transportStamp->getMessage();
+
+        if ($this->properties->isCommitAsync()) {
+            $consumer->commitAsync($message);
+
+            $this->logger->info(
+                sprintf(
+                    'Offset topic=%s partition=%s offset=%s to be committed asynchronously in reject.',
+                    $message->topic_name,
+                    $message->partition,
+                    $message->offset
+                )
+            );
+        } else {
+            $consumer->commit($message);
+
+            $this->logger->info(
+                sprintf(
+                    'Offset topic=%s partition=%s offset=%s successfully committed in reject.',
+                    $message->topic_name,
+                    $message->partition,
+                    $message->offset
+                )
+            );
+        }
     }
 
     private function getSubscribedConsumer(): KafkaConsumer
@@ -122,6 +176,8 @@ class KafkaReceiver implements ReceiverInterface
 
     private function getConsumer(): KafkaConsumer
     {
-        return $this->consumer ?? $this->consumer = $this->rdKafkaFactory->createConsumer($this->properties->getKafkaConf());
+        return $this->consumer ?? $this->consumer = $this->rdKafkaFactory->createConsumer(
+            $this->properties->getKafkaConf()
+        );
     }
 }

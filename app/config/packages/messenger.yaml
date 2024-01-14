@@ -22,15 +22,63 @@ framework:
                 dsn: '%env(KAFKA_URL)%'
                 failure_transport: failed
                 retry_strategy:
-                    max_retries: 0
+                    max_retries: 1
+                    multiplier: 1
+                    delay: 10000
+                # serializer: App\Infrastructure\Messenger\MySerializer
+                options:
+                    flushTimeout: 10000
+                    flushRetries: 5
+                    retry_topic:
+                        name: 'eventsTopic_retry_1'
+                    topic:
+                        name: 'eventsTopic'
+                    commit_async: true
+                    receive_timeout: 10000
+                    kafka_conf:
+                    consumer_conf:
+                        auto.offset.reset: 'earliest'
+                        enable.auto.offset.store: 'false'
+                        group.id: 'my-group-id' # should be unique per consumer
+                    producer_conf:
+            kafka_transport_retry_1:
+                dsn: '%env(KAFKA_URL)%'
+                failure_transport: failed
+                retry_strategy:
+                    max_retries: 2
+                    multiplier: 1
+                    delay: 30000
+                # serializer: App\Infrastructure\Messenger\MySerializer
+                options:
+                    flushTimeout: 10000
+                    flushRetries: 5
+                    retry_topic:
+                        name: 'eventsTopic_retry_2'
+                    topic:
+                        name: 'eventsTopic_retry_1'
+                    commit_async: true
+                    receive_timeout: 10000
+                    kafka_conf:
+                    consumer_conf:
+                        auto.offset.reset: 'earliest'
+                        enable.auto.offset.store: 'false'
+                        group.id: 'my-group-id' # should be unique per consumer
+                    producer_conf:
+            kafka_transport_retry_2:
+                dsn: '%env(KAFKA_URL)%'
+                failure_transport: failed
+                retry_strategy:
+                    max_retries: 2
+                    multiplier: 1
+                    delay: 30000
                 # serializer: App\Infrastructure\Messenger\MySerializer
                 options:
                     flushTimeout: 10000
                     flushRetries: 5
                     topic:
-                        name: 'eventsTopic'
-                    commitAsync: true
-                    receiveTimeout: 10000
+                        name: 'eventsTopic_retry_2'
+                    commit_async: true
+                    receive_timeout: 10000
                     kafka_conf:
                     consumer_conf:
                         auto.offset.reset: 'earliest'

@@ -8,6 +8,7 @@ use Psr\Log\LoggerInterface;
 use RdKafka\Producer as KafkaProducer;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\TransportException;
+use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 
@@ -31,10 +32,22 @@ class KafkaSender implements SenderInterface
         $this->properties = $properties;
     }
 
+    public function setup()
+    {
+        $topic = $this->getProducer()->newTopic($this->properties->getTopicName());
+    }
+
     public function send(Envelope $envelope): Envelope
     {
         $producer = $this->getProducer();
-        $topic = $producer->newTopic($this->properties->getTopicName());
+        $retryTopic = $this->properties->getRetryTopicName();
+
+        if ($envelope->last(RedeliveryStamp::class) !== null && $retryTopic) {
+            $topic = $producer->newTopic($retryTopic);
+        } else {
+            $topic = $producer->newTopic($this->properties->getTopicName());
+        }
+
         $payload = $this->serializer->encode($envelope);
 
         if (method_exists($topic, 'producev')) {
@@ -72,7 +85,12 @@ class KafkaSender implements SenderInterface
         for ($flushRetries = 0; $flushRetries < $this->properties->getFlushRetries() + 1; ++$flushRetries) {
             $code = $producer->flush($this->properties->getFlushTimeoutMs());
             if ($code === RD_KAFKA_RESP_ERR_NO_ERROR) {
-                $this->logger->info(sprintf('Kafka message sent%s', \array_key_exists('key', $payload) ? ' with key ' . $payload['key'] : ''));
+                $this->logger->info(
+                    sprintf(
+                        'Kafka message sent%s',
+                        \array_key_exists('key', $payload) ? ' with key ' . $payload['key'] : ''
+                    )
+                );
                 break;
             }
         }
